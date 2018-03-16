@@ -1,0 +1,24 @@
+name:                streaming-sort
+version:             0.1.0.0
+synopsis:            Sorting streams
+-- description:
+license:             MIT
+license-file:        LICENSE
+author:              Ivan Lazar Miljenovic
+maintainer:          Ivan.Miljenovic@gmail.com
+-- copyright:
+category:            Data, Streaming
+build-type:          Simple
+extra-source-files:  ChangeLog.md
+cabal-version:       >=1.10
+
+library
+  exposed-modules:     Streaming.Sort
+  -- other-modules:
+  -- other-extensions:
+  build-depends:       base >=4.10 && <4.11
+                     , streaming
+                     , streaming-with
+                     , transformers
+  hs-source-dirs:      src
+  default-language:    Haskell2010
