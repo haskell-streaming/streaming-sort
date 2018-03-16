@@ -17,7 +17,12 @@ library
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.10 && <4.11
+                     , binary
+                     , bytestring
+                     , exceptions
                      , streaming
+                     , streaming-binary
+                     , streaming-bytestring
                      , streaming-with
                      , transformers
   hs-source-dirs:      src
