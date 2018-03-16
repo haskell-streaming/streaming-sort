@@ -1,4 +1,3 @@
-{-# LANGUAGE RankNTypes #-}
 {- |
    Module      : Streaming.Sort
    Description : Sorting values in a Stream
@@ -28,20 +27,22 @@ module Streaming.Sort (
   , tmpDir
   )  where
 
-import Streaming         (Of, Stream)
-import Streaming.Binary  (decoded)
-import Streaming.Prelude as S
-import Streaming.With
+import           Streaming         (Of, Stream)
+import           Streaming.Binary  (decoded)
+import qualified Streaming.Prelude as S
+import           Streaming.With
 
 import           Data.Binary               (Binary, encode)
 import qualified Data.ByteString.Lazy      as BL
 import qualified Data.ByteString.Streaming as BS
 
+import           Control.Monad             (void)
 import           Control.Monad.Catch       (MonadMask, bracket)
 import           Control.Monad.IO.Class    (MonadIO, liftIO)
 import           Control.Monad.Trans.Class (lift)
 import           Data.Function             (on)
 import qualified Data.List                 as L
+import           Data.Maybe                (catMaybes)
 
 --------------------------------------------------------------------------------
 
@@ -129,6 +130,17 @@ tmpDir inj cfg = (\v -> cfg { _tmpDir = v}) <$> inj (_tmpDir cfg)
 withFilesSort :: (MonadMask m, MonadIO m, MonadIO n) => (a -> a -> Ordering) -> [FilePath]
                  -> (Stream (Of a) n v -> m r)
 withFilesSort cmp fls cont = undefined
+
+interleave :: (Monad m) => (a -> a -> Ordering) -> [Stream (Of a) m r] -> Stream (Of a) m ()
+interleave cmp streams =
+  go =<< lift (catMaybes <$> mapM S.uncons streams)
+  where
+    go [] = return ()
+    go [(a,str)] = S.yield a >> (void str)
+    go astrs = do let (a,str):astrs' = L.sortBy (cmp`on`fst) astrs
+                  S.yield a
+                  mastr' <- lift (S.uncons str)
+                  go ((maybe id (:) mastr') astrs')
 
 -- | Streaming.Binary.encoded uses Builder under the hood, requiring IO.
 encoded :: (Binary a, Monad m) => Stream (Of a) m r -> BS.ByteString m r
