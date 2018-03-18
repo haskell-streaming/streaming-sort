@@ -21,6 +21,8 @@ module Streaming.Sort (
     -- $filesort
   -- , spfilesort
   -- , spfilesortBy
+    -- ** Exceptions
+  , SortException (..)
     -- ** Configuration
   , Config , defaultConfig
     -- $lenses
@@ -38,11 +40,14 @@ import           Data.Binary               (Binary, encode)
 import qualified Data.ByteString.Lazy      as BL
 import qualified Data.ByteString.Streaming as BS
 
+import           Control.Exception         (Exception(..), IOException,
+                                            mapException)
 import           Control.Monad             (void)
-import           Control.Monad.Catch       (MonadMask, bracket)
+import           Control.Monad.Catch       (MonadMask, MonadThrow, throwM)
 import           Control.Monad.IO.Class    (MonadIO, liftIO)
 import           Control.Monad.Trans.Class (lift)
 import           Data.Function             (on)
+import           Data.Int                  (Int64)
 import qualified Data.List                 as L
 import           Data.Maybe                (catMaybes)
 
@@ -129,11 +134,15 @@ tmpDir inj cfg = (\v -> cfg { _tmpDir = v}) <$> inj (_tmpDir cfg)
 
 --------------------------------------------------------------------------------
 
--- Need to handle exceptions from decoded
+-- Need to delete files afterwards
 
-withFilesSort :: (Binary a, MonadMask m, MonadIO m, MonadIO n) => (a -> a -> Ordering) -> [FilePath]
+withFilesSort :: (Binary a, MonadMask m, MonadIO m, MonadThrow n, MonadIO n)
+                 => (a -> a -> Ordering) -> [FilePath]
                  -> (Stream (Of a) n () -> m r) -> m r
-withFilesSort cmp fls cont = mergeContinuations withBinaryFileContents fls (cont . interleave cmp . map decoded)
+withFilesSort cmp fls cont = mapException SortIO
+                             $ mergeContinuations withBinaryFileContents
+                                                  fls
+                                                  (cont . interleave cmp . map decodeStream)
 
 mergeContinuations :: (Monad m) => (forall res. a -> (b -> m res) -> m res) -> [a] -> ([b] -> m r) -> m r
 mergeContinuations toCont as cont = go [] as
@@ -156,5 +165,18 @@ interleave cmp streams =
 encodeStream :: (Binary a, Monad m) => Stream (Of a) m r -> BS.ByteString m r
 encodeStream = fromChunksLazy . S.map encode
 
+decodeStream :: (Binary a, MonadThrow m) => BS.ByteString m r -> Stream (Of a) m r
+decodeStream bs = decoded bs >>= handleResult
+  where
+    handleResult (_, bytes, res) = either (lift . throwM . SortDecode bytes) return res
+
 fromChunksLazy :: (Monad m) => Stream (Of BL.ByteString) m r -> BS.ByteString m r
 fromChunksLazy = BS.fromChunks . S.concat . S.map BL.toChunks
+
+--------------------------------------------------------------------------------
+
+data SortException = SortIO IOException
+                   | SortDecode Int64 String
+  deriving (Show)
+
+instance Exception SortException
