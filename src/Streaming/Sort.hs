@@ -206,7 +206,7 @@ readThenDelete fl k = withBinaryFileContents fl k `finally` liftIO (removeFile f
 
 -- | Fold a list of continuations into one overall continuation.
 mergeContinuations :: (Monad m) => (forall res. a -> (b -> m res) -> m res) -> [a] -> ([b] -> m r) -> m r
-mergeContinuations toCont as cont = go [] as
+mergeContinuations toCont xs cont = go [] xs
   where
     go bs []     = cont bs
     go bs (a:as) = toCont a $ \b -> go (b:bs) as
