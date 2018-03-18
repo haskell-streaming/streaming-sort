@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes #-}
+
 {- |
    Module      : Streaming.Sort
    Description : Sorting values in a Stream
@@ -127,9 +129,17 @@ tmpDir inj cfg = (\v -> cfg { _tmpDir = v}) <$> inj (_tmpDir cfg)
 
 --------------------------------------------------------------------------------
 
-withFilesSort :: (MonadMask m, MonadIO m, MonadIO n) => (a -> a -> Ordering) -> [FilePath]
-                 -> (Stream (Of a) n v -> m r)
-withFilesSort cmp fls cont = undefined
+-- Need to handle exceptions from decoded
+
+withFilesSort :: (Binary a, MonadMask m, MonadIO m, MonadIO n) => (a -> a -> Ordering) -> [FilePath]
+                 -> (Stream (Of a) n () -> m r) -> m r
+withFilesSort cmp fls cont = mergeContinuations withBinaryFileContents fls (cont . interleave cmp . map decoded)
+
+mergeContinuations :: (Monad m) => (forall res. a -> (b -> m res) -> m res) -> [a] -> ([b] -> m r) -> m r
+mergeContinuations toCont as cont = go [] as
+  where
+    go bs []     = cont bs
+    go bs (a:as) = toCont a $ \b -> go (b:bs) as
 
 interleave :: (Monad m) => (a -> a -> Ordering) -> [Stream (Of a) m r] -> Stream (Of a) m ()
 interleave cmp streams =
