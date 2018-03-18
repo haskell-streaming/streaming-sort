@@ -16,11 +16,11 @@ library
   exposed-modules:     Streaming.Sort
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.10 && <4.11
+  build-depends:       base == 4.*
                      , binary
                      , bytestring
                      , exceptions
-                     , streaming
+                     , streaming == 0.2.*
                      , streaming-binary
                      , streaming-bytestring
                      , streaming-with
