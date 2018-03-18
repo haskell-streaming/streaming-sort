@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE MultiParamTypeClasses, RankNTypes, ScopedTypeVariables #-}
 
 {- |
    Module      : Streaming.Sort
@@ -24,8 +24,10 @@ module Streaming.Sort (
     -- ** Exceptions
   , SortException (..)
     -- ** Configuration
-  , Config , defaultConfig
+  , Config
+  , defaultConfig
     -- $lenses
+  , setConfig
   , chunkSize
   , maxFiles
   , useDirectory
@@ -49,7 +51,9 @@ import           Control.Monad.Catch       (MonadMask, MonadThrow, finally,
 import           Control.Monad.IO.Class    (MonadIO, liftIO)
 import           Control.Monad.Trans.Class (lift)
 import           Data.Bool                 (bool)
+import           Data.Coerce               (Coercible, coerce)
 import           Data.Function             (on)
+import           Data.Functor.Identity     (Identity(Identity), runIdentity)
 import           Data.Int                  (Int64)
 import qualified Data.List                 as L
 import           Data.Maybe                (catMaybes)
@@ -129,6 +133,16 @@ etc. libraries.
 -}
 
 -- type Lens s t a b = forall f. (Functor f) => (a -> f b) -> s -> f t
+
+-- | A specialised variant of @set@ from lens, microlens, etc. defined
+--   here in case you're not using one of those libraries.
+setConfig :: (forall f. (Functor f) => (a -> f a) -> Config -> f Config)
+             -> a -> Config -> Config
+setConfig lens a = runIdentity #. lens (const (Identity a))
+{-# INLINABLE setConfig #-}
+
+(#.) :: (Coercible c b) => (b -> c) -> (a -> b) -> (a -> c)
+(#.) _ = coerce (\x -> x :: b) :: forall a b. Coercible b a => a -> b
 
 chunkSize :: (Functor f) => (Int -> f Int) -> Config -> f Config
 chunkSize inj cfg = (\v -> cfg { _chunkSize = v}) <$> inj (_chunkSize cfg)
