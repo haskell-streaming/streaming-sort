@@ -11,7 +11,7 @@
  -}
 module Main (main) where
 
-import Streaming.Sort
+import Streaming.Sort (chunkSize, defaultConfig, setConfig, sort, withFileSort)
 
 import           Streaming.Prelude (Of, Stream)
 import qualified Streaming.Prelude as S

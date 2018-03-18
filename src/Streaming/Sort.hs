@@ -11,8 +11,8 @@
    This module is designed to be imported qualified.
 
  -}
-module Streaming.Sort (
-    -- * In-memory sorting
+module Streaming.Sort
+  ( -- * In-memory sorting
     -- $memory
     sort
   , sortBy
