@@ -137,6 +137,7 @@ tmpDir inj cfg = (\v -> cfg { _tmpDir = v}) <$> inj (_tmpDir cfg)
 --------------------------------------------------------------------------------
 
 
+-- | Read in the specified files and merge the sorted streams.
 withFilesSort :: (Binary a, MonadMask m, MonadIO m, MonadThrow n, MonadIO n)
                  => (a -> a -> Ordering) -> [FilePath]
                  -> (Stream (Of a) n () -> m r) -> m r
@@ -152,6 +153,7 @@ readThenDelete :: (MonadMask m, MonadIO m, MonadIO n) => FilePath
                   -> (BS.ByteString n () -> m r) -> m r
 readThenDelete fl k = withBinaryFileContents fl k `finally` liftIO (removeFile fl)
 
+-- | Fold a list of continuations into one overall continuation.
 mergeContinuations :: (Monad m) => (forall res. a -> (b -> m res) -> m res) -> [a] -> ([b] -> m r) -> m r
 mergeContinuations toCont as cont = go [] as
   where
@@ -182,6 +184,8 @@ interleave cmp streams =
 encodeStream :: (Binary a, Monad m) => Stream (Of a) m r -> BS.ByteString m r
 encodeStream = fromChunksLazy . S.map encode
 
+-- | A wrapper around 'decoded' that throws an exception rather than
+--   returning failure.
 decodeStream :: (Binary a, MonadThrow m) => BS.ByteString m r -> Stream (Of a) m r
 decodeStream bs = decoded bs >>= handleResult
   where
