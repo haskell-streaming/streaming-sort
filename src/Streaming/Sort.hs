@@ -31,7 +31,7 @@ module Streaming.Sort (
   , useDirectory
   )  where
 
-import           Streaming         (Of, Stream)
+import           Streaming         (Of(..), Stream)
 import qualified Streaming         as S
 import           Streaming.Binary  (decoded)
 import qualified Streaming.Prelude as S
@@ -66,15 +66,17 @@ use them for short Streams.
 -}
 
 -- | Sort the values based upon their 'Ord' instance.
-sort :: (Monad m, Ord a) => Stream (Of a) m r -> Stream (Of a) m ()
+sort :: (Monad m, Ord a) => Stream (Of a) m r -> Stream (Of a) m r
 sort = sortBy compare
 
 -- | Use the specified comparison function to sort the values.
-sortBy :: (Monad m) => (a -> a -> Ordering) -> Stream (Of a) m r -> Stream (Of a) m ()
-sortBy f s = S.each . L.sortBy f . S.fst' =<< lift (S.toList s)
+sortBy :: (Monad m) => (a -> a -> Ordering) -> Stream (Of a) m r -> Stream (Of a) m r
+sortBy cmp s = lift (S.toList s) >>= srt
+  where
+    srt (as :> r) = S.each (L.sortBy cmp as) >> return r
 
 -- | Use the provided function to be able to compare values.
-sortOn :: (Ord b, Monad m) => (a -> b) -> Stream (Of a) m r -> Stream (Of a) m ()
+sortOn :: (Ord b, Monad m) => (a -> b) -> Stream (Of a) m r -> Stream (Of a) m r
 sortOn f = S.map fst
            . sortBy (compare `on` snd)
            . S.map ((,) <*> f)
