@@ -43,13 +43,15 @@ import qualified Data.ByteString.Streaming as BS
 import           Control.Exception         (Exception(..), IOException,
                                             mapException)
 import           Control.Monad             (void)
-import           Control.Monad.Catch       (MonadMask, MonadThrow, throwM)
+import           Control.Monad.Catch       (MonadMask, MonadThrow, finally,
+                                            throwM)
 import           Control.Monad.IO.Class    (MonadIO, liftIO)
 import           Control.Monad.Trans.Class (lift)
 import           Data.Function             (on)
 import           Data.Int                  (Int64)
 import qualified Data.List                 as L
 import           Data.Maybe                (catMaybes)
+import           System.Directory          (removeFile)
 
 --------------------------------------------------------------------------------
 
@@ -134,15 +136,21 @@ tmpDir inj cfg = (\v -> cfg { _tmpDir = v}) <$> inj (_tmpDir cfg)
 
 --------------------------------------------------------------------------------
 
--- Need to delete files afterwards
 
 withFilesSort :: (Binary a, MonadMask m, MonadIO m, MonadThrow n, MonadIO n)
                  => (a -> a -> Ordering) -> [FilePath]
                  -> (Stream (Of a) n () -> m r) -> m r
-withFilesSort cmp fls cont = mapException SortIO
-                             $ mergeContinuations withBinaryFileContents
-                                                  fls
-                                                  (cont . interleave cmp . map decodeStream)
+withFilesSort cmp files k = mergeContinuations readThenDelete
+                                               files
+                                               withMerged
+  where
+    withMerged = k . interleave cmp . map decodeStream
+
+-- | A wrapper around 'withBinaryFileContents' that deletes the file
+--   afterwards.
+readThenDelete :: (MonadMask m, MonadIO m, MonadIO n) => FilePath
+                  -> (BS.ByteString n () -> m r) -> m r
+readThenDelete fl k = withBinaryFileContents fl k `finally` liftIO (removeFile fl)
 
 mergeContinuations :: (Monad m) => (forall res. a -> (b -> m res) -> m res) -> [a] -> ([b] -> m r) -> m r
 mergeContinuations toCont as cont = go [] as
