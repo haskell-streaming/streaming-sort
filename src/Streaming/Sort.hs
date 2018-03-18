@@ -19,8 +19,8 @@ module Streaming.Sort (
   , sortOn
     -- * File-based sorting
     -- $filesort
-  -- , spfilesort
-  -- , spfilesortBy
+  , withFileSort
+  , withFileSortBy
     -- ** Exceptions
   , SortException (..)
     -- ** Configuration
@@ -43,16 +43,18 @@ import qualified Data.ByteString.Streaming as BS
 
 import           Control.Exception         (Exception(..), IOException,
                                             mapException)
-import           Control.Monad             (void)
+import           Control.Monad             (join, void)
 import           Control.Monad.Catch       (MonadMask, MonadThrow, finally,
                                             throwM)
 import           Control.Monad.IO.Class    (MonadIO, liftIO)
 import           Control.Monad.Trans.Class (lift)
+import           Data.Bool                 (bool)
 import           Data.Function             (on)
 import           Data.Int                  (Int64)
 import qualified Data.List                 as L
 import           Data.Maybe                (catMaybes)
-import           System.Directory          (removeFile)
+import           System.Directory          (doesDirectoryExist, getPermissions,
+                                            removeFile, writable)
 import           System.IO                 (hClose, openBinaryTempFile)
 
 --------------------------------------------------------------------------------
@@ -88,6 +90,8 @@ sortOn f = S.map fst
 For large Streams it may not be possible to sort it entirely in
 memory.  As such, these functions work by sorting chunks of the Stream
 and storing them in temporary files before merging them all together.
+
+These functions may throw a 'SortException'.
 
 -}
 
@@ -139,6 +143,44 @@ useDirectory inj cfg = (\v -> cfg { _useDirectory = v}) <$> inj (_useDirectory c
 {-# INLINABLE useDirectory #-}
 
 --------------------------------------------------------------------------------
+
+-- | Use external files to temporarily store partially sorted (using
+--   the comparison function) results (splitting into chunks of the
+--   specified size if one is provided).
+--
+--   These files are stored inside the specified directory if
+--   provided; if no such directory is provided then the system
+--   temporary directory is used.
+withFileSort :: (Ord a, Binary a, MonadMask m, MonadIO m, MonadThrow n, MonadIO n)
+                => Config -> Stream (Of a) m v
+                -> (Stream (Of a) n () -> m r) -> m r
+withFileSort cfg = withFileSortBy cfg compare
+
+-- | Use external files to temporarily store partially sorted (using
+--   the comparison function) results (splitting into chunks of the
+--   specified size if one is provided).
+--
+--   These files are stored inside the specified directory if
+--   provided; if no such directory is provided then the system
+--   temporary directory is used.
+withFileSortBy :: (Binary a, MonadMask m, MonadIO m, MonadThrow n, MonadIO n)
+                  => Config -> (a -> a -> Ordering) -> Stream (Of a) m v
+                  -> (Stream (Of a) n () -> m r) -> m r
+withFileSortBy cfg cmp str k = mapException SortIO . createDir $ \dir ->
+  mergeAllFiles (_maxFiles cfg) dir cmp (initStream dir) k
+  where
+    createDir k' = liftIO (traverse checkDir (_useDirectory cfg)) -- :: m (Maybe (Maybe FilePath))
+                   -- If a directory is specified, make sure we can actually use it
+                   >>= (`getTmpDir` k') . join -- join is to get rid of double Maybe
+
+    -- Make sure the directory exists and is writable.
+    checkDir dir = do exists <- doesDirectoryExist dir
+                      canWrite <- writable <$> getPermissions dir
+                      return (bool Nothing (Just dir) (exists && canWrite))
+
+    getTmpDir mdir = maybe withSystemTempDirectory withTempDirectory mdir "streaming-sort"
+
+    initStream dir = initialSort (_chunkSize cfg) dir cmp str
 
 -- | Do initial in-memory sorting, writing the results to disk.
 initialSort :: (Binary a, MonadMask m, MonadIO m)
