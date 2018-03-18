@@ -52,6 +52,7 @@ import           Data.Int                  (Int64)
 import qualified Data.List                 as L
 import           Data.Maybe                (catMaybes)
 import           System.Directory          (removeFile)
+import           System.IO                 (hClose, openBinaryTempFile)
 
 --------------------------------------------------------------------------------
 
@@ -136,6 +137,19 @@ tmpDir inj cfg = (\v -> cfg { _tmpDir = v}) <$> inj (_tmpDir cfg)
 
 --------------------------------------------------------------------------------
 
+-- | Encode and write data to a new temporary file located within the
+--   specified directory.
+--
+--   (Data not actually required to be sorted.)
+writeSortedData :: (Binary a, MonadMask m, MonadIO m)
+                   => FilePath -> Stream (Of a) m r -> m FilePath
+writeSortedData tmpDir str = do fl <- liftIO newTmpFile
+                                writeBinaryFile fl (encodeStream str)
+                                return fl
+  where
+    newTmpFile = do (fl, h) <- openBinaryTempFile tmpDir "streaming-sort-chunk"
+                    hClose h -- Just want a new filename, not the actual Handle
+                    return fl
 
 -- | Read in the specified files and merge the sorted streams.
 withFilesSort :: (Binary a, MonadMask m, MonadIO m, MonadThrow n, MonadIO n)
