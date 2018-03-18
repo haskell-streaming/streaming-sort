@@ -109,7 +109,7 @@ data Config = Config
     -- ^ Where to store temporary files.  Will be cleaned up
     -- afterwards.  'Nothing' indicates to use the system temporary
     -- directory.
-  }
+  } deriving (Show)
 
 -- | Default settings for sorting using external files:
 --
@@ -119,10 +119,10 @@ data Config = Config
 --
 --   * Use the system temporary directory.
 defaultConfig :: Config
-defaultConfig  = Config
-  { _chunkSize = 1000
-  , _maxFiles  = 100
-  , _useDirectory    = Nothing
+defaultConfig = Config
+  { _chunkSize    = 1000
+  , _maxFiles     = 100
+  , _useDirectory = Nothing
   }
 
 {- $lenses
