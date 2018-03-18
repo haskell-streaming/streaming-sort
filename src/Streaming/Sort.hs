@@ -153,8 +153,8 @@ interleave cmp streams =
                   go ((maybe id (:) mastr') astrs')
 
 -- | Streaming.Binary.encoded uses Builder under the hood, requiring IO.
-encoded :: (Binary a, Monad m) => Stream (Of a) m r -> BS.ByteString m r
-encoded = fromChunksLazy . S.map encode
+encodeStream :: (Binary a, Monad m) => Stream (Of a) m r -> BS.ByteString m r
+encodeStream = fromChunksLazy . S.map encode
 
 fromChunksLazy :: (Monad m) => Stream (Of BL.ByteString) m r -> BS.ByteString m r
 fromChunksLazy = BS.fromChunks . S.concat . S.map BL.toChunks
