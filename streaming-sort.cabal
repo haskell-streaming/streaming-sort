@@ -23,15 +23,15 @@ library
   exposed-modules:     Streaming.Sort
                      , Streaming.Sort.Lifted
   build-depends:       base == 4.*
-                     , binary
-                     , bytestring
-                     , directory
-                     , exceptions
+                     , binary == 0.8.*
+                     , bytestring == 0.10.*
+                     , directory <= 1.4
+                     , exceptions >= 0.8 && < 0.11
                      , streaming == 0.2.*
-                     , streaming-binary
-                     , streaming-bytestring
-                     , streaming-with
-                     , transformers
+                     , streaming-binary == 0.3.*
+                     , streaming-bytestring == 0.1.*
+                     , streaming-with == 0.2.*
+                     , transformers == 0.5.*
   hs-source-dirs:      src
   default-language:    Haskell2010
 
