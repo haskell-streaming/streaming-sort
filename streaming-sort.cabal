@@ -1,12 +1,12 @@
 name:                streaming-sort
 version:             0.1.0.0
 synopsis:            Sorting streams
--- description:
+description:         Sort streaming values, using files for a cached merge-sort of long @Stream@s.
 license:             MIT
 license-file:        LICENSE
 author:              Ivan Lazar Miljenovic
 maintainer:          Ivan.Miljenovic@gmail.com
--- copyright:
+copyright:           Ivan Lazar Miljenovic
 category:            Data, Streaming
 build-type:          Simple
 extra-source-files:  ChangeLog.md
@@ -16,8 +16,6 @@ tested-with:         GHC == 7.10.2, GHC == 8.0.2, GHC == 8.2.2,
 
 library
   exposed-modules:     Streaming.Sort
-  -- other-modules:
-  -- other-extensions:
   build-depends:       base == 4.*
                      , binary
                      , bytestring
