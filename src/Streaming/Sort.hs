@@ -28,7 +28,7 @@ module Streaming.Sort (
     -- $lenses
   , chunkSize
   , maxFiles
-  , tmpDir
+  , useDirectory
   )  where
 
 import           Streaming         (Of, Stream)
@@ -90,12 +90,12 @@ and storing them in temporary files before merging them all together.
 -}
 
 data Config = Config
-  { _chunkSize :: !Int
+  { _chunkSize    :: !Int
     -- ^ Size of chunks to sort in-memory.
-  , _maxFiles  :: !Int
+  , _maxFiles     :: !Int
     -- ^ The maximum number of temporary files to be reading at any
     -- one time.
-  , _tmpDir    :: !(Maybe FilePath)
+  , _useDirectory :: !(Maybe FilePath)
     -- ^ Where to store temporary files.  Will be cleaned up
     -- afterwards.  'Nothing' indicates to use the system temporary
     -- directory.
@@ -112,7 +112,7 @@ defaultConfig :: Config
 defaultConfig  = Config
   { _chunkSize = 1000
   , _maxFiles  = 100
-  , _tmpDir    = Nothing
+  , _useDirectory    = Nothing
   }
 
 {- $lenses
@@ -132,9 +132,9 @@ maxFiles :: (Functor f) => (Int -> f Int) -> Config -> f Config
 maxFiles inj cfg = (\v -> cfg { _maxFiles = v}) <$> inj (_maxFiles cfg)
 {-# INLINABLE maxFiles #-}
 
-tmpDir :: (Functor f) => (Maybe FilePath -> f (Maybe FilePath)) -> Config -> f Config
-tmpDir inj cfg = (\v -> cfg { _tmpDir = v}) <$> inj (_tmpDir cfg)
-{-# INLINABLE tmpDir #-}
+useDirectory :: (Functor f) => (Maybe FilePath -> f (Maybe FilePath)) -> Config -> f Config
+useDirectory inj cfg = (\v -> cfg { _useDirectory = v}) <$> inj (_useDirectory cfg)
+{-# INLINABLE useDirectory #-}
 
 --------------------------------------------------------------------------------
 
