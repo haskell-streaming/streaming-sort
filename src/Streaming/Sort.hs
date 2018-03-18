@@ -32,6 +32,7 @@ module Streaming.Sort (
   )  where
 
 import           Streaming         (Of, Stream)
+import qualified Streaming         as S
 import           Streaming.Binary  (decoded)
 import qualified Streaming.Prelude as S
 import           Streaming.With
@@ -136,6 +137,31 @@ tmpDir inj cfg = (\v -> cfg { _tmpDir = v}) <$> inj (_tmpDir cfg)
 {-# INLINABLE tmpDir #-}
 
 --------------------------------------------------------------------------------
+
+-- | Recursively merge files containing sorted data.
+mergeAllFiles :: (Binary a, MonadMask m, MonadIO m, MonadThrow n, MonadIO n)
+                 => Int -> FilePath -> (a -> a -> Ordering)
+                 -> Stream (Of FilePath) m v
+                 -> (Stream (Of a) n () -> m r) -> m r
+mergeAllFiles numFiles tmpDir cmp files k = go files
+  where
+    go = checkEmpty . S.mapped S.toList . S.chunksOf numFiles
+
+    -- If no files, then evaluate the continuation with the empty Stream.
+    checkEmpty chunks = S.uncons chunks >>= maybe (k (return ()))
+                                                  (uncurry checkSingleChunk)
+
+    -- In a single chunk there's no need to write the contents back
+    -- out to disk.
+    checkSingleChunk ch chunks =
+      S.uncons chunks >>= maybe (withFilesSort cmp ch k)
+                                (uncurry (withMultipleChunks ch))
+
+    withMultipleChunks ch1 ch2 chunks = go (S.mapM sortAndWrite allChunks)
+      where
+        allChunks = S.yield ch1 >> S.yield ch2 >> chunks
+
+        sortAndWrite fls = withFilesSort cmp fls (writeSortedData tmpDir)
 
 -- | Encode and write data to a new temporary file located within the
 --   specified directory.
