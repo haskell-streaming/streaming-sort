@@ -140,6 +140,16 @@ useDirectory inj cfg = (\v -> cfg { _useDirectory = v}) <$> inj (_useDirectory c
 
 --------------------------------------------------------------------------------
 
+-- | Do initial in-memory sorting, writing the results to disk.
+initialSort :: (Binary a, MonadMask m, MonadIO m)
+               => Int -> FilePath -> (a -> a -> Ordering)
+               -> Stream (Of a) m r
+               -> Stream (Of FilePath) m r
+initialSort chnkSize dir cmp =
+  S.mapped (writeSortedData dir)
+  . S.maps (sortBy cmp)
+  . S.chunksOf chnkSize
+
 -- | Recursively merge files containing sorted data.
 mergeAllFiles :: (Binary a, MonadMask m, MonadIO m, MonadThrow n, MonadIO n)
                  => Int -> FilePath -> (a -> a -> Ordering)
@@ -163,17 +173,16 @@ mergeAllFiles numFiles tmpDir cmp files k = go files
       where
         allChunks = S.yield ch1 >> S.yield ch2 >> chunks
 
-        sortAndWrite fls = withFilesSort cmp fls (writeSortedData tmpDir)
+        sortAndWrite fls = withFilesSort cmp fls (fmap S.fst' . writeSortedData tmpDir)
 
 -- | Encode and write data to a new temporary file located within the
 --   specified directory.
 --
 --   (Data not actually required to be sorted.)
 writeSortedData :: (Binary a, MonadMask m, MonadIO m)
-                   => FilePath -> Stream (Of a) m r -> m FilePath
+                   => FilePath -> Stream (Of a) m r -> m (Of FilePath r)
 writeSortedData tmpDir str = do fl <- liftIO newTmpFile
-                                writeBinaryFile fl (encodeStream str)
-                                return fl
+                                (fl :>) <$> writeBinaryFile fl (encodeStream str)
   where
     newTmpFile = do (fl, h) <- openBinaryTempFile tmpDir "streaming-sort-chunk"
                     hClose h -- Just want a new filename, not the actual Handle
