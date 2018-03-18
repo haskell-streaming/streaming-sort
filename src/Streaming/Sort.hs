@@ -150,16 +150,25 @@ mergeContinuations toCont as cont = go [] as
     go bs []     = cont bs
     go bs (a:as) = toCont a $ \b -> go (b:bs) as
 
+-- | Merge multiple streams together using the provided comparison
+--   function.  Assumes provided streams are already sorted.
 interleave :: (Monad m) => (a -> a -> Ordering) -> [Stream (Of a) m r] -> Stream (Of a) m ()
 interleave cmp streams =
-  go =<< lift (catMaybes <$> mapM S.uncons streams)
+  go =<< lift (L.sortBy cmper . catMaybes <$> mapM S.uncons streams)
   where
-    go [] = return ()
-    go [(a,str)] = S.yield a >> (void str)
-    go astrs = do let (a,str):astrs' = L.sortBy (cmp`on`fst) astrs
-                  S.yield a
-                  mastr' <- lift (S.uncons str)
-                  go ((maybe id (:) mastr') astrs')
+    -- We take as input a list of @(a, Stream)@ tuples sorted on the @a@
+    -- value to represent non-empty Streams.
+    go []               = return ()
+    go [(a,str)]        = S.yield a >> void str -- Only stream left!
+    go ((a,str):astrs') = do S.yield a
+                             -- Try to get the next element
+                             mastr' <- lift (S.uncons str)
+                             go (addBackIfNonEmpty mastr' astrs')
+
+    -- If a Stream is non-empty, place it back in the correct position.
+    addBackIfNonEmpty = maybe id (L.insertBy cmper)
+
+    cmper = cmp `on` fst
 
 -- | Streaming.Binary.encoded uses Builder under the hood, requiring IO.
 encodeStream :: (Binary a, Monad m) => Stream (Of a) m r -> BS.ByteString m r
