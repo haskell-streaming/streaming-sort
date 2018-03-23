@@ -1,5 +1,5 @@
 name:                streaming-sort
-version:             0.1.0.1
+version:             0.1.0.2
 synopsis:            Sorting streams
 description:         Sort streaming values, using files for a cached merge-sort of long @Stream@s.
 license:             MIT
