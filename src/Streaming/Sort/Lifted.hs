@@ -84,7 +84,7 @@ withFileSort cfg str = liftWith (SS.withFileSort cfg str)
 --   These files are stored inside the specified directory if
 --   provided; if no such directory is provided then the system
 --   temporary directory is used.
-withFileSortBy :: (Ord a, Binary a, Withable w
+withFileSortBy :: (Binary a, Withable w
                   , MonadMask (WithMonad w), MonadIO (WithMonad w)
                   , MonadThrow m, MonadIO m)
                   => Config -> (a -> a -> Ordering)
